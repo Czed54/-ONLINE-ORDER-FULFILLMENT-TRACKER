@@ -153,6 +153,44 @@ def get_customer_by_email(conn, email):
     """Return the customer row with this email, or None."""
     return conn.execute("SELECT * FROM customers WHERE email = ?", (email,)).fetchone()
 
+
+def get_customer_by_id(conn, customer_id):
+    """Return one customer by ID, or None if not found."""
+    return conn.execute(
+        """
+        SELECT customer_id, name, email, city, phone
+        FROM customers
+        WHERE customer_id = ?
+        """,
+        (customer_id,)
+    ).fetchone()
+
+
+def update_customer(conn, customer_id, name, email, city, phone):
+    """Update an existing customer's information."""
+    with conn:
+        cur = conn.execute(
+            """
+            UPDATE customers
+            SET name = ?, email = ?, city = ?, phone = ?
+            WHERE customer_id = ?
+            """,
+            (name, email, city, phone, customer_id)
+        )
+
+    return cur.rowcount > 0
+
+
+def delete_customer(conn, customer_id):
+    """Delete a customer if they have no existing orders."""
+    with conn:
+        cur = conn.execute(
+            "DELETE FROM customers WHERE customer_id = ?",
+            (customer_id,)
+        )
+
+    return cur.rowcount > 0
+
 def set_customer_password(conn, customer_id, password):
     """Store a new (hashed) password for a customer."""
     with conn:
