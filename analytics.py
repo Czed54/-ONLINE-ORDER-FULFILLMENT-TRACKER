@@ -139,3 +139,77 @@ def show_analytics(conn):
     for path in (chart_orders_by_status(conn), chart_revenue_by_payment(conn)):
         if path:
             print(f"   Saved: {path}")
+
+# ----------------------------------------------------------- CLI integration
+def print_board(conn):
+    """Display order counts and values grouped by shipping/payment status."""
+    from database import shipping_summary, payment_summary
+
+    print("\n=== SHIPPING BOARD ===")
+    print(f"{'Shipping status':<16} {'Orders':>8} {'Order value':>16}")
+    print("-" * 42)
+    for status, count, amount in shipping_summary(conn):
+        print(f"{status:<16} {count:>8} {amount:>16,.2f}")
+
+    print("\n=== PAYMENT BOARD ===")
+    print(f"{'Payment status':<16} {'Orders':>8} {'Order value':>16}")
+    print("-" * 42)
+    for status, count, amount in payment_summary(conn):
+        print(f"{status:<16} {count:>8} {amount:>16,.2f}")
+
+
+def write_map_page(conn, order_id):
+    """Create a local HTML tracking page for an order and return its Path."""
+    import html
+    from urllib.parse import quote
+
+    from database import get_order_items, get_orders
+    from functions import MAP_PAGE_TEMPLATE, map_url, route_map_lines, where_is_order
+
+    rows = get_orders(conn, order_id=order_id)
+    if not rows:
+        return None
+
+    order = rows[0]
+    items = get_order_items(conn, order_id)
+    where = where_is_order(order)
+
+    title = f"Order #{order_id} - Delivery Tracking"
+    subtitle = f"Customer: {order['customer']} | Destination: {order['city']}"
+    item_rows = "".join(
+        "<tr><td>{}</td><td>{}</td><td>{}</td><td>{:,.2f}</td></tr>".format(
+            html.escape(str(item["product_name"])),
+            item["quantity"],
+            html.escape(f"PHP {item['unit_price']:,.2f}"),
+            item["quantity"] * item["unit_price"],
+        )
+        for item in items
+    )
+    route_rows = "".join(
+        "<tr><td>{}</td></tr>".format(html.escape(line.strip()))
+        for line in route_map_lines(order)
+    )
+    map_place = where["map_place"] or order["city"]
+    embed_url = "https://www.google.com/maps?q=" + quote(map_place) + "&output=embed"
+    link_url = map_url(map_place)
+    total = sum(item["quantity"] * item["unit_price"] for item in items)
+
+    replacements = {
+        "@@TITLE@@": html.escape(title),
+        "@@SUB@@": html.escape(subtitle),
+        "@@HEADLINE@@": html.escape(where["headline"]),
+        "@@EMBED@@": html.escape(embed_url, quote=True),
+        "@@LINK@@": html.escape(link_url, quote=True),
+        "@@ROUTE@@": route_rows,
+        "@@ITEMS@@": item_rows,
+        "@@TOTAL@@": html.escape(f"PHP {total:,.2f}"),
+    }
+    page = MAP_PAGE_TEMPLATE
+    for marker, value in replacements.items():
+        page = page.replace(marker, value)
+
+    CHARTS_DIR.mkdir(parents=True, exist_ok=True)
+    output_path = CHARTS_DIR / f"order_{order_id}_tracking.html"
+    output_path.write_text(page, encoding="utf-8")
+    return output_path
+
