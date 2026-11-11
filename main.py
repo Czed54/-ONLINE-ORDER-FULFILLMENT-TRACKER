@@ -7,9 +7,9 @@ import sqlite3
 import webbrowser
 from datetime import date
 
-from analytics import print_board, print_route_map, write_map_page
+from analytics import print_board, write_map_page
 from database import Customer, PAYMENT_STATUSES, SHIPPING_STATUSES, add_customer, add_order, advance_parcel, confirm_order, create_tables, customer_exists, delete_order, get_admin, get_connection, get_customer_by_email, get_customers, get_order_items, get_orders, get_quick_stats, get_status_history, set_admin_password, set_customer_password, update_item_quantity, update_order_status
-from functions import EDITABLE_STATUSES, allowed_next_statuses, banner, calculate_order_total, format_money, hash_password, info, is_valid_phone, normalize_phone, ok, order_stage, paginate, print_table, read_choice, read_date, read_email, read_float, read_int, read_name, read_new_password, read_password, read_phone, read_text, read_yes_no, route_stops, verify_password, warn
+from functions import print_route_map, EDITABLE_STATUSES, allowed_next_statuses, banner, calculate_order_total, format_money, hash_password, info, is_valid_phone, normalize_phone, ok, order_stage, paginate, print_table, read_choice, read_date, read_email, read_float, read_int, read_name, read_new_password, read_password, read_phone, read_text, read_yes_no, route_stops, verify_password, warn
 
 # 6. MENU FLOWS AND PROGRAM START
 
