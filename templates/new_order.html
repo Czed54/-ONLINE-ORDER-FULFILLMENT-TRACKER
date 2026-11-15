@@ -5,12 +5,12 @@
 {% block content %}
 <div class="page-header">
     <h2>Place a New Order</h2>
-    <p>Enter the products you want to order.</p>
+    <p>Select products from the catalog and choose your quantities.</p>
 </div>
 
 <div class="panel">
+    {% if products %}
     <form method="POST" action="{{ url_for('new_order') }}" id="order-form">
-
         <label for="order_date">Order Date</label>
         <input type="date" id="order_date" name="order_date"
                value="{{ today }}" max="{{ today }}" required>
@@ -25,20 +25,29 @@
         <div id="items-container">
             <div class="order-item">
                 <div>
-                    <label>Product Name</label>
-                    <input type="text" name="product_name[]" required>
+                    <label>Product</label>
+                    <select name="product_id[]" class="product-select"
+                            onchange="updateItem(this)" required>
+                        <option value="">Choose a product</option>
+                        {% for product in products %}
+                        <option value="{{ product.product_id }}"
+                                data-price="{{ product.unit_price }}">
+                            {{ product.name }} — {{ money(product.unit_price) }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
 
                 <div>
                     <label>Quantity</label>
                     <input type="number" name="quantity[]" min="1"
-                           max="1000" value="1" required>
+                           max="1000" value="1" oninput="updateItem(this)" required>
                 </div>
 
-                <div>
+                <div class="order-price">
                     <label>Unit Price</label>
-                    <input type="number" name="unit_price[]" min="0"
-                           step="0.01" value="0" required>
+                    <p class="unit-price">₱0.00</p>
+                    <small class="line-subtotal">Subtotal: ₱0.00</small>
                 </div>
 
                 <button type="button" class="remove-item"
@@ -48,47 +57,101 @@
             </div>
         </div>
 
+        <div class="order-total">
+            <strong>Estimated Total:</strong>
+            <strong id="order-total">₱0.00</strong>
+        </div>
+
+        <p class="muted-text">
+            Final prices are verified using the product catalog when you submit.
+        </p>
+
         <div class="form-actions">
             <button type="submit" class="btn">Submit Order</button>
-            <a href="{{ url_for('orders') }}" class="btn btn-secondary">
-                Cancel
-            </a>
+            <a href="{{ url_for('orders') }}" class="btn btn-secondary">Cancel</a>
         </div>
     </form>
+
+    <template id="order-item-template">
+        <div class="order-item">
+            <div>
+                <label>Product</label>
+                <select name="product_id[]" class="product-select"
+                        onchange="updateItem(this)" required>
+                    <option value="">Choose a product</option>
+                    {% for product in products %}
+                    <option value="{{ product.product_id }}"
+                            data-price="{{ product.unit_price }}">
+                        {{ product.name }} — {{ money(product.unit_price) }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label>Quantity</label>
+                <input type="number" name="quantity[]" min="1"
+                       max="1000" value="1" oninput="updateItem(this)" required>
+            </div>
+            <div class="order-price">
+                <label>Unit Price</label>
+                <p class="unit-price">₱0.00</p>
+                <small class="line-subtotal">Subtotal: ₱0.00</small>
+            </div>
+            <button type="button" class="remove-item"
+                    onclick="removeItem(this)">Remove</button>
+        </div>
+    </template>
+
+    {% else %}
+    <h3>No products available</h3>
+    <p>The product catalog is currently empty. Please contact the administrator.</p>
+    <a href="{{ url_for('orders') }}" class="btn btn-secondary">Back to Orders</a>
+    {% endif %}
 </div>
 
+{% if products %}
 <script>
+function peso(value) {
+    return "₱" + value.toLocaleString("en-PH", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    });
+}
+
+function updateItem(element) {
+    const item = element.closest(".order-item");
+    const select = item.querySelector(".product-select");
+    const quantity = item.querySelector('input[name="quantity[]"]');
+    const option = select.options[select.selectedIndex];
+    const price = Number(option?.dataset.price || 0);
+    const qty = Math.max(0, Number(quantity.value) || 0);
+
+    item.querySelector(".unit-price").textContent = peso(price);
+    item.querySelector(".line-subtotal").textContent =
+        "Subtotal: " + peso(price * qty);
+
+    updateTotal();
+}
+
+function updateTotal() {
+    let total = 0;
+
+    document.querySelectorAll(".order-item").forEach(item => {
+        const select = item.querySelector(".product-select");
+        const quantity = item.querySelector('input[name="quantity[]"]');
+        const option = select.options[select.selectedIndex];
+        const price = Number(option?.dataset.price || 0);
+        const qty = Number(quantity.value) || 0;
+        total += price * qty;
+    });
+
+    document.getElementById("order-total").textContent = peso(total);
+}
+
 function addItem() {
-    const container = document.getElementById("items-container");
-
-    const item = document.createElement("div");
-    item.className = "order-item";
-
-    item.innerHTML = `
-        <div>
-            <label>Product Name</label>
-            <input type="text" name="product_name[]" required>
-        </div>
-
-        <div>
-            <label>Quantity</label>
-            <input type="number" name="quantity[]" min="1"
-                   max="1000" value="1" required>
-        </div>
-
-        <div>
-            <label>Unit Price</label>
-            <input type="number" name="unit_price[]" min="0"
-                   step="0.01" value="0" required>
-        </div>
-
-        <button type="button" class="remove-item"
-                onclick="removeItem(this)">
-            Remove
-        </button>
-    `;
-
-    container.appendChild(item);
+    const template = document.getElementById("order-item-template");
+    const clone = template.content.cloneNode(true);
+    document.getElementById("items-container").appendChild(clone);
     updateRemoveButtons();
 }
 
@@ -100,15 +163,32 @@ function removeItem(button) {
     }
 
     updateRemoveButtons();
+    updateTotal();
 }
 
 function updateRemoveButtons() {
     const items = document.querySelectorAll(".order-item");
 
     items.forEach(item => {
-        const button = item.querySelector(".remove-item");
-        button.disabled = items.length === 1;
+        item.querySelector(".remove-item").disabled = items.length === 1;
     });
 }
+
+document.getElementById("order-form").addEventListener("submit", function (event) {
+    const selected = [...document.querySelectorAll(".product-select")];
+
+    if (selected.some(select => !select.value)) {
+        event.preventDefault();
+        alert("Please choose a product for every order item.");
+        return;
+    }
+
+    const ids = selected.map(select => select.value);
+    if (new Set(ids).size !== ids.length) {
+        event.preventDefault();
+        alert("Please select each product only once.");
+    }
+});
 </script>
+{% endif %}
 {% endblock %}

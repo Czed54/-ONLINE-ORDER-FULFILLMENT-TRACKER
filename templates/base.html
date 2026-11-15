@@ -18,6 +18,8 @@
         })();
     </script>
 
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
@@ -29,6 +31,9 @@
         <nav>
             <a href="{{ url_for('dashboard') }}">Dashboard</a>
             <a href="{{ url_for('orders') }}">Orders</a>
+            {% if session.get('role') == 'admin' %}
+            <a href="{{ url_for('products') }}">Products</a>
+            {% endif %}
             {% if session.get('role') == 'customer' %}
             <a href="{{ url_for('new_order') }}">Place Order</a>
             {% endif %}

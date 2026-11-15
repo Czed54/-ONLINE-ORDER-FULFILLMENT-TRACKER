@@ -7,6 +7,11 @@ from pathlib import Path
 from database import (
     Customer,
     add_customer,
+    add_product,
+    get_products,
+    get_product_by_id,
+    update_product,
+    set_product_active,
     add_order,
     advance_parcel,
     confirm_order,
@@ -260,6 +265,58 @@ class DatabaseTests(unittest.TestCase):
         self.assertTrue(delete_order(self.conn, order_id))
         self.assertEqual(get_orders(self.conn, order_id=order_id), [])
         self.assertEqual(get_order_items(self.conn, order_id), [])
+
+
+    def test_product_catalog(self):
+        product_id = add_product(
+            self.conn, "Notebook", "A ruled notebook", 50.00
+        )
+
+        product = get_product_by_id(self.conn, product_id)
+        self.assertIsNotNone(product)
+        self.assertEqual(product["name"], "Notebook")
+        self.assertEqual(product["unit_price"], 50.00)
+        self.assertEqual(len(get_products(self.conn)), 1)
+
+    def test_product_name_is_required(self):
+        with self.assertRaises(ValueError):
+            add_product(self.conn, "   ", "", 10.00)
+
+    def test_product_price_must_be_valid(self):
+        for invalid_price in (-1, "invalid", float("inf"), float("nan")):
+            with self.subTest(price=invalid_price):
+                with self.assertRaises(ValueError):
+                    add_product(self.conn, "Invalid Product", "", invalid_price)
+
+    def test_update_product(self):
+        product_id = add_product(self.conn, "Old Name", "", 25.00)
+
+        updated = update_product(
+            self.conn, product_id, "New Name", "Updated description", 35.50
+        )
+
+        product = get_product_by_id(self.conn, product_id)
+        self.assertTrue(updated)
+        self.assertEqual(product["name"], "New Name")
+        self.assertEqual(product["description"], "Updated description")
+        self.assertEqual(product["unit_price"], 35.50)
+
+    def test_deactivate_and_reactivate_product(self):
+        product_id = add_product(self.conn, "Desk Lamp", "", 250.00)
+
+        self.assertTrue(set_product_active(self.conn, product_id, False))
+        self.assertEqual(get_products(self.conn), [])
+        self.assertEqual(len(get_products(self.conn, include_inactive=True)), 1)
+
+        self.assertTrue(set_product_active(self.conn, product_id, True))
+        self.assertEqual(len(get_products(self.conn)), 1)
+
+    def test_product_name_is_case_insensitive_unique(self):
+        add_product(self.conn, "Notebook", "", 50.00)
+
+        with self.assertRaises(sqlite3.IntegrityError):
+            add_product(self.conn, "NOTEBOOK", "", 60.00)
+
 
 
 if __name__ == "__main__":

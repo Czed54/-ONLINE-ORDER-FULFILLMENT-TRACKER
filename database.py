@@ -97,6 +97,17 @@ def create_tables(conn):
                 ON DELETE CASCADE
         );
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS products (
+            product_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+            description TEXT NOT NULL DEFAULT '',
+            unit_price REAL NOT NULL CHECK (unit_price >= 0),
+            is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     # Upgrade older databases (existing data is kept).
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(orders)")}
     if "route_stage" not in columns:
@@ -454,3 +465,96 @@ def customer_totals(conn):
         GROUP BY c.customer_id
         ORDER BY total DESC, c.name
     """).fetchall()
+
+
+# ---------------------------------------------------------
+# PRODUCT CATALOG
+# ---------------------------------------------------------
+
+def add_product(conn, name, description, unit_price):
+    """Create a catalog product and return its product_id."""
+    name = str(name).strip()
+    description = str(description or "").strip()
+
+    if not name:
+        raise ValueError("Product name is required.")
+
+    try:
+        price = float(unit_price)
+    except (TypeError, ValueError):
+        raise ValueError("Invalid product price.")
+
+    if price < 0 or price != price or price in (float("inf"), float("-inf")):
+        raise ValueError("Product price must be a valid non-negative number.")
+
+    with conn:
+        cur = conn.execute(
+            """INSERT INTO products (name, description, unit_price)
+               VALUES (?, ?, ?)""",
+            (name, description, round(price, 2))
+        )
+    return cur.lastrowid
+
+
+def get_products(conn, include_inactive=False):
+    """Return catalog products, active products only by default."""
+    if include_inactive:
+        return conn.execute(
+            "SELECT * FROM products ORDER BY name COLLATE NOCASE"
+        ).fetchall()
+
+    return conn.execute(
+        """SELECT * FROM products
+           WHERE is_active = 1
+           ORDER BY name COLLATE NOCASE"""
+    ).fetchall()
+
+
+def get_product_by_id(conn, product_id):
+    """Return one product by ID, or None if it does not exist."""
+    return conn.execute(
+        "SELECT * FROM products WHERE product_id = ?",
+        (product_id,)
+    ).fetchone()
+
+
+def update_product(conn, product_id, name, description, unit_price):
+    """Update a product's details without changing historical order items."""
+    name = str(name).strip()
+    description = str(description or "").strip()
+
+    if not name:
+        raise ValueError("Product name is required.")
+
+    try:
+        price = float(unit_price)
+    except (TypeError, ValueError):
+        raise ValueError("Invalid product price.")
+
+    if price < 0 or price != price or price in (float("inf"), float("-inf")):
+        raise ValueError("Product price must be a valid non-negative number.")
+
+    with conn:
+        cur = conn.execute(
+            """UPDATE products
+               SET name = ?, description = ?, unit_price = ?,
+                   updated_at = CURRENT_TIMESTAMP
+               WHERE product_id = ?""",
+            (name, description, round(price, 2), product_id)
+        )
+    return cur.rowcount > 0
+
+
+def set_product_active(conn, product_id, is_active):
+    """Activate or deactivate a product."""
+    if is_active not in (True, False, 0, 1):
+        raise ValueError("is_active must be True or False.")
+
+    with conn:
+        cur = conn.execute(
+            """UPDATE products
+               SET is_active = ?, updated_at = CURRENT_TIMESTAMP
+               WHERE product_id = ?""",
+            (int(bool(is_active)), product_id)
+        )
+    return cur.rowcount > 0

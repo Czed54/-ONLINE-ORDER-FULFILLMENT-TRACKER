@@ -14,6 +14,8 @@ from flask import (
 from database import (
     Customer, PAYMENT_STATUSES, SHIPPING_STATUSES,
     add_customer, add_order, confirm_order, create_tables,
+    add_product, get_products, get_product_by_id,
+    update_product, set_product_active,
     get_admin, get_connection, get_customer_by_email,
     get_customer_by_id, get_order_items, get_orders,
     get_quick_stats, get_status_history, update_order_status,
@@ -251,6 +253,77 @@ def dashboard():
     )
 
 
+
+# ---------------------------------------------------------
+# PRODUCT CATALOG (ADMIN)
+# ---------------------------------------------------------
+
+@app.route("/products", methods=["GET", "POST"])
+@login_required("admin")
+def products():
+    conn = get_db()
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        description = request.form.get("description", "").strip()
+        price = request.form.get("unit_price", "").strip()
+        product_id = request.form.get("product_id", "").strip()
+
+        try:
+            if product_id:
+                updated = update_product(
+                    conn, int(product_id), name, description, price
+                )
+                if not updated:
+                    flash("Product not found.", "warning")
+                else:
+                    flash("Product updated successfully.", "success")
+            else:
+                add_product(conn, name, description, price)
+                flash("Product added to the catalog.", "success")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+        except sqlite3.IntegrityError:
+            flash("A product with that name already exists.", "danger")
+
+        return redirect(url_for("products"))
+
+    editing = None
+    edit_id = request.args.get("edit", "").strip()
+    if edit_id:
+        try:
+            editing = get_product_by_id(conn, int(edit_id))
+            if editing is None:
+                flash("Product not found.", "warning")
+        except ValueError:
+            flash("Invalid product selection.", "danger")
+
+    return render_template(
+        "products.html",
+        products=get_products(conn, include_inactive=True),
+        editing=editing,
+        money=format_money
+    )
+
+
+@app.route("/products/<int:product_id>/toggle", methods=["POST"])
+@login_required("admin")
+def toggle_product(product_id):
+    conn = get_db()
+    product = get_product_by_id(conn, product_id)
+
+    if product is None:
+        abort(404)
+
+    new_state = not bool(product["is_active"])
+    set_product_active(conn, product_id, new_state)
+    flash(
+        "Product activated." if new_state else "Product deactivated.",
+        "success"
+    )
+    return redirect(url_for("products"))
+
+
 # ---------------------------------------------------------
 # ORDERS
 # ---------------------------------------------------------
@@ -281,52 +354,83 @@ def orders():
 @app.route("/orders/new", methods=["GET", "POST"])
 @login_required("customer")
 def new_order():
-    if request.method == "POST":
-        products = request.form.getlist("product_name[]")
-        quantities = request.form.getlist("quantity[]")
-        prices = request.form.getlist("unit_price[]")
+    conn = get_db()
+    available_products = get_products(conn)
 
+    if request.method == "POST":
+        product_ids = request.form.getlist("product_id[]")
+        quantities = request.form.getlist("quantity[]")
         items = []
 
         try:
-            for product, quantity, price in zip(products, quantities, prices):
-                product = product.strip()
+            if not available_products:
+                raise ValueError("No products are currently available.")
 
-                if not product:
-                    continue
+            if (
+                not product_ids
+                or len(product_ids) != len(quantities)
+                or len(product_ids) > 20
+            ):
+                raise ValueError("Please check your order items.")
 
-                qty = int(quantity)
-                unit_price = float(price)
+            seen_ids = set()
 
-                if qty < 1 or qty > 1000 or unit_price < 0:
-                    raise ValueError
+            for raw_id, raw_quantity in zip(product_ids, quantities):
+                product_id = int(raw_id)
+                quantity = int(raw_quantity)
 
-                items.append((product, qty, unit_price))
+                if product_id in seen_ids:
+                    raise ValueError("Please select each product only once.")
+                seen_ids.add(product_id)
 
-            if not items:
-                raise ValueError
+                if quantity < 1 or quantity > 1000:
+                    raise ValueError("Quantity must be between 1 and 1000.")
 
-            order_date = request.form.get("order_date") or date.today().isoformat()
+                product = get_product_by_id(conn, product_id)
+                if product is None or not product["is_active"]:
+                    raise ValueError(
+                        "One of your selected products is no longer available."
+                    )
+
+                # Use the catalog name and price, never submitted client prices.
+                items.append((
+                    product["name"],
+                    quantity,
+                    product["unit_price"]
+                ))
+
+            order_date = (
+                request.form.get("order_date")
+                or date.today().isoformat()
+            )
             parsed_date = date.fromisoformat(order_date)
 
             if parsed_date > date.today():
-                raise ValueError
+                raise ValueError("Order date cannot be in the future.")
 
             order_id = add_order(
-                get_db(),
+                conn,
                 session["user_id"],
                 order_date,
                 items,
                 payment_status="Unpaid"
             )
 
-            flash(f"Order #{order_id} submitted. Waiting for admin confirmation.", "success")
+            flash(
+                f"Order #{order_id} submitted. Waiting for admin confirmation.",
+                "success"
+            )
             return redirect(url_for("order_detail", order_id=order_id))
 
-        except (ValueError, TypeError):
-            flash("Check your order date, product names, quantities, and prices.", "danger")
+        except (ValueError, TypeError, OverflowError) as exc:
+            flash(str(exc) or "Please check your order details.", "danger")
 
-    return render_template("new_order.html", today=date.today().isoformat())
+    return render_template(
+        "new_order.html",
+        today=date.today().isoformat(),
+        products=available_products,
+        money=format_money
+    )
 
 
 @app.route("/orders/<int:order_id>")
