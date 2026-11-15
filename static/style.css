@@ -748,3 +748,29 @@ table td {
     .trk-step::before { left: calc(50% + 22px); right: calc(-50% + 22px); top: 15px; bottom: auto; width: auto; height: 2px; }
     .trk-grid { grid-template-columns: 1fr 1fr; }
 }
+
+/* =========================================
+   Polish pass: contrast, charts, mobile
+   ========================================= */
+
+:root[data-theme="dark"] .btn { color: #0b1220; }
+:root[data-theme="dark"] .btn:hover { background: #93c5fd; color: #0b1220; }
+:root[data-theme="dark"] .btn-secondary { color: var(--text); background: var(--surface-secondary); }
+:root[data-theme="dark"] .btn-secondary:hover { background: var(--hover-surface); color: var(--text); }
+:root[data-theme="dark"] .status-badge { background: var(--surface-secondary); color: var(--primary); }
+
+.charts-grid img { display: block; width: 100%; height: auto; border-radius: 10px; }
+:root[data-theme="dark"] .charts-grid img { filter: invert(0.92) hue-rotate(180deg); }
+
+.trk-grid { align-items: start; }
+.details-grid p { margin: 0; line-height: 1.5; }
+
+@media (max-width: 700px) {
+    .details-grid { grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+    .details-grid p strong { display: block; color: var(--muted); font-weight: 500; font-size: 12.5px; }
+    .table-container { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-container table { min-width: 460px; }
+    .management-form { grid-template-columns: 1fr; }
+    .management-form .btn, .trk-actions .btn, .trk-actions form { width: 100%; }
+    .trk-copy { width: auto; }
+}
