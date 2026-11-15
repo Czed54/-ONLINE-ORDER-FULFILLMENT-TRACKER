@@ -59,6 +59,10 @@ def insert_sample_data(conn):
             "INSERT INTO customers (name, email) VALUES (?, ?)",
             ("Juan Reyes", "juan@example.com")
         )
+        conn.execute(
+            "INSERT INTO customers (name, email) VALUES (?, ?)",
+            ("Ana Cruz", "ana@example.com")
+        )
 
         conn.execute(
             "INSERT INTO orders (customer_id, order_date) VALUES (?, ?)",
@@ -68,6 +72,10 @@ def insert_sample_data(conn):
             "INSERT INTO orders (customer_id, order_date) VALUES (?, ?)",
             (2, "2026-11-16")
         )
+        conn.execute(
+            "INSERT INTO orders (customer_id, order_date) VALUES (?, ?)",
+            (3, "2026-11-16")
+        )
 
         conn.executemany(
             """INSERT INTO order_items
@@ -76,7 +84,9 @@ def insert_sample_data(conn):
             [
                 (1, "Notebook", 2, 50.00),
                 (1, "Ballpen", 3, 15.00),
-                (2, "Folder", 5, 12.00)
+                (2, "Folder", 5, 12.00),
+                (3, "Eraser", 4, 5.00),
+                (3, "Ruler", 2, 10.00)
             ]
         )
 
@@ -99,6 +109,18 @@ def retrieve_orders(conn):
         ORDER BY orders.order_id
     """
     return conn.execute(query).fetchall()
+
+
+
+def search_customer(conn, search_term):
+    """Search for customers by name using a parameterized query."""
+    query = """
+        SELECT customer_id, name, email
+        FROM customers
+        WHERE name LIKE ?
+        ORDER BY name
+    """
+    return conn.execute(query, (f"%{search_term}%",)).fetchall()
 
 
 def update_order_item(conn, item_id, new_quantity):
@@ -134,7 +156,7 @@ def main():
         insert_sample_data(conn)
 
         print("\nTEST 1 - INSERT")
-        print("Inserted 2 customers, 2 orders, and 3 order items.")
+        print("Inserted 3 customers, 3 orders, and 5 order items.")
         print("PASS - Sample records inserted.")
 
         print("\nTEST 2 - SELECT WITH INNER JOIN")
@@ -147,7 +169,16 @@ def main():
                 f"PHP {row['unit_price']:.2f}"
             )
 
-        print("\nTEST 3 - UPDATE")
+        print("\nTEST 3 - SEARCH CUSTOMER")
+        results = search_customer(conn, "Maria")
+        for customer in results:
+            print(
+                f"Found: {customer['name']} | "
+                f"Email: {customer['email']}"
+            )
+        print("PASS - Customer search completed.")
+
+        print("\nTEST 4 - UPDATE")
         success = update_order_item(conn, 1, 5)
         print("Updated item quantity:", success)
 
