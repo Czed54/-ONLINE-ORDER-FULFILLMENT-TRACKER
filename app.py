@@ -16,7 +16,8 @@ from database import (
     add_customer, add_order, confirm_order, create_tables,
     get_admin, get_connection, get_customer_by_email,
     get_customer_by_id, get_order_items, get_orders,
-    get_quick_stats, get_status_history, update_order_status
+    get_quick_stats, get_status_history, update_order_status,
+    advance_parcel
 )
 from analytics import (
     chart_orders_by_status, chart_revenue_by_payment,
@@ -25,7 +26,8 @@ from analytics import (
 from functions import (
     allowed_next_statuses, hash_password, is_valid_email,
     is_valid_name, is_valid_phone, normalize_phone,
-    verify_password, format_money
+    verify_password, format_money,
+    order_stage, route_stops, where_is_order, map_url
 )
 
 app = Flask(__name__)
@@ -352,11 +354,68 @@ def order_detail(order_id):
         order=order,
         items=items,
         history=history,
+        tracking=build_tracking(order),
         role=session["role"],
         next_statuses=allowed_next_statuses(order["shipping_status"]),
         payment_statuses=PAYMENT_STATUSES,
         money=format_money
     )
+
+
+# --- tracking page ---
+
+STEP_LABELS = ["Order placed", "Processing", "Shipped", "Out for delivery", "Delivered"]
+
+
+def build_tracking(order):
+    """Everything the tracking view needs, derived from the order row."""
+    status = order["shipping_status"]
+    stage = order_stage(order)  # 0-4, or None when cancelled
+    where = where_is_order(order)
+
+    if status == "Cancelled":
+        return {"cancelled": True, "where": where, "steps": [], "stops": [],
+                "maps_url": None, "badge": "Cancelled"}
+
+    if status == "Delivered":
+        current = 5  # every step done
+    elif stage == 3:
+        current = 3
+    elif stage in (1, 2):
+        current = 2
+    elif status == "Processing":
+        current = 1
+    else:
+        current = 0
+
+    notes = {0: order["order_date"],
+             2: order["shipped_date"],
+             4: order["delivered_date"]}
+    steps = []
+    for i, label in enumerate(STEP_LABELS):
+        state = "done" if i < current else "current" if i == current else "todo"
+        steps.append({"label": label, "state": state, "note": notes.get(i) if state != "todo" else None})
+
+    stops = []
+    for i, (title, _place) in enumerate(route_stops(order["city"])):
+        state = "done" if i < stage or stage == 4 else "current" if i == stage else "todo"
+        stops.append({"title": title, "state": state})
+
+    badge = "Out for delivery" if stage == 3 and status == "Shipped" else status
+    maps_url = map_url(where["map_place"]) if where["map_place"] else None
+    return {"cancelled": False, "where": where, "steps": steps, "stops": stops,
+            "maps_url": maps_url, "badge": badge, "can_advance": status == "Shipped" and stage < 3}
+
+
+@app.route("/orders/<int:order_id>/advance", methods=["POST"])
+@login_required("admin")
+def advance_parcel_route(order_id):
+    stop = advance_parcel(get_db(), order_id)
+    if stop:
+        flash(f"Parcel moved to: {stop}.", "success")
+    else:
+        flash("This parcel can't move to a new stop. It must be Shipped and not yet out for delivery.", "warning")
+    return redirect(url_for("order_detail", order_id=order_id))
 
 
 @app.route("/orders/<int:order_id>/confirm", methods=["POST"])

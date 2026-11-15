@@ -704,3 +704,47 @@ table td {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* =========================================
+   Tracking page
+   ========================================= */
+
+.trk-badge { display: inline-flex; align-items: center; gap: 6px; }
+.trk-badge.trk-cancelled { background: transparent; border: 1px solid var(--danger); color: var(--danger); }
+.trk-note { color: var(--muted); margin: 8px 0 0; }
+
+.trk-steps { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 0; }
+.trk-step { position: relative; display: flex; gap: 14px; padding-bottom: 20px; }
+.trk-step:last-child { padding-bottom: 0; }
+.trk-step::before { content: ""; position: absolute; left: 15px; top: 32px; bottom: 0; width: 2px; background: var(--border); }
+.trk-step:last-child::before { display: none; }
+.trk-step.done::before { background: var(--success); }
+.trk-dot {
+    flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+    border: 2px solid var(--border); background: var(--surface); color: var(--muted);
+    font-weight: 700; font-variant-numeric: tabular-nums; position: relative; z-index: 1;
+}
+.trk-step.done .trk-dot { background: var(--success); border-color: var(--success); color: #fff; }
+.trk-step.current .trk-dot { background: var(--primary); border-color: var(--primary); color: var(--surface); box-shadow: 0 0 0 5px var(--surface-secondary); }
+.trk-text strong { display: block; }
+.trk-text small { color: var(--muted); font-variant-numeric: tabular-nums; }
+.trk-step.todo .trk-text strong { color: var(--muted); font-weight: 500; }
+
+.trk-grid { display: grid; gap: 20px; margin-bottom: 20px; }
+.trk-grid > .panel { margin-bottom: 0; }
+.trk-place { font-size: 20px; font-weight: 700; margin: 4px 0 12px; }
+.trk-route { list-style: none; margin: 0 0 16px; padding: 0; }
+.trk-route li { padding: 5px 0; color: var(--muted); }
+.trk-route li span { display: inline-block; width: 1.4em; }
+.trk-route li.done { color: var(--text); }
+.trk-route li.current { color: var(--text); font-weight: 700; }
+.trk-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.trk-actions form { margin: 0; }
+.trk-copy { min-height: 40px; }
+
+@media (min-width: 760px) {
+    .trk-steps { grid-template-columns: repeat(5, 1fr); }
+    .trk-step { flex-direction: column; align-items: center; text-align: center; padding: 0 6px; gap: 10px; }
+    .trk-step::before { left: calc(50% + 22px); right: calc(-50% + 22px); top: 15px; bottom: auto; width: auto; height: 2px; }
+    .trk-grid { grid-template-columns: 1fr 1fr; }
+}

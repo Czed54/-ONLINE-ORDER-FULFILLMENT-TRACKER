@@ -5,40 +5,100 @@
 {% block content %}
 <div class="page-header">
     <h2>Order #{{ order.order_id }}</h2>
-    <p>Order details and fulfillment tracking.</p>
+    <p>{{ tracking.where.headline }}</p>
 </div>
 
-<div class="panel">
+<section class="panel" aria-labelledby="trk-progress">
     <div class="section-heading">
-        <h3>Order Information</h3>
-        <span class="status-badge">{{ order.shipping_status }}</span>
+        <h3 id="trk-progress">Progress</h3>
+        <span class="status-badge trk-badge{% if tracking.cancelled %} trk-cancelled{% endif %}">
+            <span aria-hidden="true">{{ "✕" if tracking.cancelled else "●" }}</span> {{ tracking.badge }}
+        </span>
+    </div>
+
+    {% if tracking.cancelled %}
+    <p class="trk-note">This order was cancelled and won't be delivered.</p>
+    {% else %}
+    <ol class="trk-steps" aria-label="Order progress">
+        {% for step in tracking.steps %}
+        <li class="trk-step {{ step.state }}"{% if step.state == "current" %} aria-current="step"{% endif %}>
+            <span class="trk-dot" aria-hidden="true">{% if step.state == "done" %}✓{% else %}{{ loop.index }}{% endif %}</span>
+            <span class="trk-text">
+                <strong>{{ step.label }}</strong>
+                <small>{% if step.state == "current" %}Current{% elif step.state == "done" %}Done{% else %}Not yet{% endif %}{% if step.note %} · {{ step.note }}{% endif %}</small>
+            </span>
+        </li>
+        {% endfor %}
+    </ol>
+    {% endif %}
+</section>
+
+<div class="trk-grid">
+    {% if not tracking.cancelled %}
+    <section class="panel" aria-labelledby="trk-where">
+        <h3 id="trk-where">Package location</h3>
+        <p class="trk-place">{{ tracking.where.place }}</p>
+        <ol class="trk-route">
+            {% for stop in tracking.stops %}
+            <li class="{{ stop.state }}"{% if stop.state == "current" %} aria-current="step"{% endif %}>
+                <span aria-hidden="true">{% if stop.state == "done" %}✓{% elif stop.state == "current" %}●{% else %}○{% endif %}</span>
+                {{ stop.title }}
+            </li>
+            {% endfor %}
+        </ol>
+        <div class="trk-actions">
+            {% if tracking.maps_url %}
+            <a class="btn btn-secondary" href="{{ tracking.maps_url }}" target="_blank" rel="noopener">View on map</a>
+            {% endif %}
+            {% if role == "admin" and tracking.can_advance %}
+            <form method="POST" action="{{ url_for('advance_parcel_route', order_id=order.order_id) }}">
+                <button type="submit" class="btn">Move to next stop</button>
+            </form>
+            {% endif %}
+        </div>
+    </section>
+    {% endif %}
+
+    <section class="panel" aria-labelledby="trk-history">
+        <h3 id="trk-history">Tracking history</h3>
+        {% if history %}
+        <div class="timeline">
+            {% for event in history|reverse %}
+            <div class="timeline-item">
+                <strong>{{ event.event }}</strong>
+                <p>{{ event.changed_at }}</p>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p>No tracking updates yet.</p>
+        {% endif %}
+    </section>
+</div>
+
+<section class="panel" aria-labelledby="trk-summary">
+    <div class="section-heading">
+        <h3 id="trk-summary">Order summary</h3>
+        <button type="button" class="btn btn-secondary trk-copy" id="trkCopy" data-copy="#{{ order.order_id }}">Copy order number</button>
     </div>
 
     <div class="details-grid">
-        <p><strong>Order ID:</strong> #{{ order.order_id }}</p>
-        <p><strong>Order Date:</strong> {{ order.order_date }}</p>
+        <p><strong>Order date:</strong> {{ order.order_date }}</p>
+        <p><strong>Payment:</strong> {{ order.payment_status }}</p>
+        <p><strong>Shipped:</strong> {{ order.shipped_date or "Not shipped yet" }}</p>
+        <p><strong>Delivered:</strong> {{ order.delivered_date or "Not delivered yet" }}</p>
+        <p><strong>Delivering to:</strong> {{ order.city }}</p>
         {% if role == "admin" %}
         <p><strong>Customer:</strong> {{ order.customer }}</p>
-        <p><strong>City:</strong> {{ order.city }}</p>
         <p><strong>Phone:</strong> {{ order.phone }}</p>
         {% endif %}
-        <p><strong>Shipping Status:</strong> {{ order.shipping_status }}</p>
-        <p><strong>Payment Status:</strong> {{ order.payment_status }}</p>
-        <p><strong>Shipped Date:</strong> {{ order.shipped_date or "Not shipped" }}</p>
-        <p><strong>Delivered Date:</strong> {{ order.delivered_date or "Not delivered" }}</p>
     </div>
 
-    <h3>Order Items</h3>
     {% if items %}
     <div class="table-container">
         <table>
             <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Quantity</th>
-                    <th>Unit Price</th>
-                    <th>Subtotal</th>
-                </tr>
+                <tr><th>Product</th><th>Quantity</th><th>Unit price</th><th>Subtotal</th></tr>
             </thead>
             <tbody>
                 {% for item in items %}
@@ -55,28 +115,22 @@
     {% endif %}
 
     <div class="order-total">
-        <strong>Order Total:</strong>
+        <strong>Order total:</strong>
         <span>{{ money(order.total) }}</span>
     </div>
-</div>
+</section>
 
 {% if role == "admin" %}
 <div class="panel">
     <h3>Order Management</h3>
 
     {% if order.shipping_status == "Pending" %}
-    <form method="POST"
-          action="{{ url_for('confirm_order_route', order_id=order.order_id) }}">
-        <button type="submit" class="btn">
-            Confirm Order
-        </button>
+    <form method="POST" action="{{ url_for('confirm_order_route', order_id=order.order_id) }}">
+        <button type="submit" class="btn">Confirm Order</button>
     </form>
     {% endif %}
 
-    <form method="POST"
-          action="{{ url_for('update_order_route', order_id=order.order_id) }}"
-          class="management-form">
-
+    <form method="POST" action="{{ url_for('update_order_route', order_id=order.order_id) }}" class="management-form">
         <div>
             <label for="shipping_status">Shipping Status</label>
             <select name="shipping_status" id="shipping_status">
@@ -92,10 +146,7 @@
             <select name="payment_status" id="payment_status">
                 <option value="">Keep Current Status</option>
                 {% for status in payment_statuses %}
-                <option value="{{ status }}"
-                    {% if status == order.payment_status %}selected{% endif %}>
-                    {{ status }}
-                </option>
+                <option value="{{ status }}" {% if status == order.payment_status %}selected{% endif %}>{{ status }}</option>
                 {% endfor %}
             </select>
         </div>
@@ -105,24 +156,22 @@
 </div>
 {% endif %}
 
-<div class="panel">
-    <h3>Tracking History</h3>
+<a href="{{ url_for('orders') }}" class="btn btn-secondary">Back to Orders</a>
 
-    {% if history %}
-    <div class="timeline">
-        {% for event in history %}
-        <div class="timeline-item">
-            <strong>{{ event.event }}</strong>
-            <p>{{ event.changed_at }}</p>
-        </div>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p>No tracking history available.</p>
-    {% endif %}
-</div>
-
-<a href="{{ url_for('orders') }}" class="btn btn-secondary">
-    Back to Orders
-</a>
+<script>
+    (function () {
+        var btn = document.getElementById("trkCopy");
+        if (!btn) return;
+        btn.addEventListener("click", function () {
+            var text = btn.getAttribute("data-copy");
+            var done = function () {
+                btn.textContent = "Copied";
+                setTimeout(function () { btn.textContent = "Copy order number"; }, 1800);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(done, function () {});
+            }
+        });
+    })();
+</script>
 {% endblock %}
