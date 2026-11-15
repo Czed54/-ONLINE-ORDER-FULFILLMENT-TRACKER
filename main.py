@@ -1,14 +1,23 @@
 """main.py - login, menus and program flow.
-
+http://127.0.0.1:5000
 DSA 214 - Final Laboratory Activity - Scenario 14 (Online Order Fulfillment Tracker).
 """
+
+"""
+to activate the virtual envi:
+    source .venv/Scripts/activate
+install dependencies:
+    pip install -r requirements.txt
+launch the GUI:
+    python app.py
+then open http://127.0.0.1:5000    
+    """
 
 import sqlite3
 import webbrowser
 from datetime import date
-
+from database import Customer, PAYMENT_STATUSES, SHIPPING_STATUSES, add_customer, add_order, advance_parcel, confirm_order, create_tables, customer_exists, delete_customer, delete_order, get_admin, get_connection, get_customer_by_email, get_customer_by_id, get_customers, get_order_items, get_orders, get_quick_stats, get_status_history, set_admin_password, set_customer_password, update_customer, update_item_quantity, update_order_status
 from analytics import print_board, write_map_page
-from database import Customer, PAYMENT_STATUSES, SHIPPING_STATUSES, add_customer, add_order, advance_parcel, confirm_order, create_tables, customer_exists, delete_order, get_admin, get_connection, get_customer_by_email, get_customers, get_order_items, get_orders, get_quick_stats, get_status_history, set_admin_password, set_customer_password, update_item_quantity, update_order_status
 from functions import print_route_map, EDITABLE_STATUSES, allowed_next_statuses, banner, calculate_order_total, format_money, hash_password, info, is_valid_phone, normalize_phone, ok, order_stage, paginate, print_table, read_choice, read_date, read_email, read_float, read_int, read_name, read_new_password, read_password, read_phone, read_text, read_yes_no, route_stops, verify_password, warn
 
 # 6. MENU FLOWS AND PROGRAM START
@@ -60,6 +69,133 @@ def view_customers_flow(conn):
         [[r["customer_id"], r["name"], r["email"], r["phone"] or "-", r["city"],
           r["order_count"]] for r in rows],
     )
+
+def add_customer_flow(conn):
+    """Allow the admin to register a new customer account."""
+    banner("Add Customer")
+
+    name = read_name("Full name: ")
+    email = read_email("Email: ")
+    phone = read_phone("Mobile number: ")
+    city = read_text("City: ", max_length=60)
+    password = read_new_password()
+
+    print("\nCustomer information:")
+    print(f"Name:  {name}")
+    print(f"Email: {email}")
+    print(f"Phone: {phone}")
+    print(f"City:  {city}")
+
+    if not read_yes_no("Save this customer?"):
+        info("Customer registration cancelled.")
+        return
+
+    try:
+        customer_id = add_customer(
+            conn,
+            Customer(
+                name=name,
+                email=email,
+                city=city,
+                phone=phone,
+                password_hash=hash_password(password)
+            )
+        )
+        ok(f"Customer added successfully! Customer ID: {customer_id}")
+
+    except sqlite3.IntegrityError:
+        warn("A customer with that email already exists. Nothing was saved.")
+
+def update_customer_flow(conn):
+    """Edit an existing customer's information."""
+    banner("Update Customer")
+
+    view_customers_flow(conn)
+
+    customer_id = read_int(
+        "\nCustomer ID to update (0 to cancel): ",
+        minimum=0
+    )
+
+    if customer_id == 0:
+        info("Update cancelled.")
+        return
+
+    customer = get_customer_by_id(conn, customer_id)
+
+    if customer is None:
+        warn(f"No customer with ID {customer_id}.")
+        return
+
+    print("\nCurrent customer information:")
+    print(f"Name:  {customer['name']}")
+    print(f"Email: {customer['email']}")
+    print(f"Phone: {customer['phone'] or '-'}")
+    print(f"City:  {customer['city']}")
+
+    print("\nEnter the updated information:")
+    name = read_name("New name: ")
+    email = read_email("New email: ")
+    phone = read_phone("New mobile number: ")
+    city = read_text("City: ", max_length=60)
+    password = read_new_password()
+
+    print("\nUpdated information:")
+    print(f"Name:  {name}")
+    print(f"Email: {email}")
+    print(f"Phone: {phone}")
+    print(f"City:  {city}")
+
+    if not read_yes_no("Save these changes?"):
+        info("Update cancelled. No changes were saved.")
+        return
+
+    try:
+        if update_customer(conn, customer_id, name, email, city, phone):
+            ok(f"Customer #{customer_id} updated successfully.")
+        else:
+            warn("Customer information was not updated.")
+    except sqlite3.IntegrityError:
+        warn("That email address is already registered. No changes were saved.")
+
+
+def delete_customer_flow(conn):
+    """Delete a customer who has no existing orders."""
+    banner("Delete Customer")
+
+    view_customers_flow(conn)
+
+    customer_id = read_int(
+        "\nCustomer ID to delete (0 to cancel): ",
+        minimum=0
+    )
+
+    if customer_id == 0:
+        info("Deletion cancelled.")
+        return
+
+    customer = get_customer_by_id(conn, customer_id)
+
+    if customer is None:
+        warn(f"No customer with ID {customer_id}.")
+        return
+
+    print("\nCustomer selected:")
+    print(f"ID:    {customer['customer_id']}")
+    print(f"Name:  {customer['name']}")
+    print(f"Email: {customer['email']}")
+
+    if not read_yes_no("Are you sure you want to delete this customer?"):
+        info("Deletion cancelled. No records were deleted.")
+        return
+
+    try:
+        if delete_customer(conn, customer_id):
+            ok(f"Customer #{customer_id} deleted successfully.")
+        else:
+            warn("Customer could not be deleted.")
+    except sqlite3.IntegrityError:
+        warn("This customer has existing orders and cannot be deleted.")
 
 def add_order_flow(conn, customer_id=None):
     """Create an order with one or more items, reviewed before saving.
@@ -364,21 +500,24 @@ def change_admin_password_flow(conn, admin):
     set_admin_password(conn, admin["admin_id"], read_new_password())
     ok("Admin password changed.")
 
-
 MENU = [
     ("1", "View customers", view_customers_flow),
-    ("2", "Place order", add_order_flow),
-    ("3", "View all orders", view_orders_flow),
-    ("4", "View order details (items)", order_details_flow),
-    ("5", "Track an order (with delivery map)", track_order_flow),
-    ("6", "Search orders", search_orders_flow),
-    ("7", "Update order (status / parcel location)", update_order_flow),
-    ("8", "Delete order", delete_order_flow),
-    ("9", "Shipping & payment board", board_flow),
-    ("10", "Confirm order", confirm_order_flow),
-    ("11", "Change admin password", None),  # needs the logged-in admin; handled in admin_session()
+    ("2", "Add customer", add_customer_flow),
+    ("3", "Update customer", update_customer_flow),
+    ("4", "Delete customer", delete_customer_flow),
+    ("5", "Place order", add_order_flow),
+    ("6", "View all orders", view_orders_flow),
+    ("7", "View order details (items)", order_details_flow),
+    ("8", "Track an order (with delivery map)", track_order_flow),
+    ("9", "Search orders", search_orders_flow),
+    ("10", "Update order (status / parcel location)", update_order_flow),
+    ("11", "Delete order", delete_order_flow),
+    ("12", "Shipping & payment board", board_flow),
+    ("13", "Confirm order", confirm_order_flow),
+    ("14", "Change admin password", None),
     ("0", "Log out", None),
 ]
+
 ACTIONS = {key: func for key, _, func in MENU if func}
 LAST_OPTION = max(int(key) for key, _, _ in MENU)
 
@@ -389,97 +528,188 @@ def my_orders_flow(conn, customer_id):
     banner("My Orders")
     show_orders(get_orders(conn, customer_id=customer_id))
 
+def clear_screen():
+    """Clear the terminal screen."""
+    print("\033[2J\033[H", end="", flush=True)
+
+
+def pause_for_enter():
+    """Wait for the user before returning to the menu."""
+    input("\nPress Enter to continue...")
+
 def admin_session(conn, admin):
     """Admin menu loop; returns when the admin logs out."""
     while True:
+        clear_screen()
         show_menu(conn)
+
         choice = input(f"\nSelect an option (0-{LAST_OPTION}): ").strip()
+
         if choice == "0":
             info("Logged out.")
             return
-        if choice == "11":
+
+        if choice == "14":
             action = lambda c: change_admin_password_flow(c, admin)
         else:
             action = ACTIONS.get(choice)
+
         if action is None:
             warn(f"Invalid choice. Please enter a number from 0 to {LAST_OPTION}.")
+            pause_for_enter()
             continue
+
+        clear_screen()
+
         try:
             action(conn)
         except sqlite3.Error as error:
             warn(f"Database error: {error}. Your data was not changed.")
 
+        pause_for_enter()
+
+
 def customer_session(conn, customer):
     """Customer menu loop; a customer only sees and orders for their own account."""
     customer_id = customer["customer_id"]
+
     options = [
         ("1", "View my orders", lambda: my_orders_flow(conn, customer_id)),
         ("2", "View order details (items)", lambda: order_details_flow(conn, customer_id)),
         ("3", "Track an order (with delivery map)", lambda: track_order_flow(conn, customer_id)),
         ("4", "Place order", lambda: add_order_flow(conn, customer_id)),
     ]
+
     while True:
+        clear_screen()
+
         print("\n" + "=" * 60)
         print(f"WELCOME, {customer['name']}")
         print("=" * 60)
+
         for key, label, _ in options:
             print(f"  {key}. {label}")
+
         print("  0. Log out")
         print("-" * 60)
+
         choice = input("Select an option (0-4): ").strip()
+
         if choice == "0":
             info("Logged out.")
             return
+
         action = {key: func for key, _, func in options}.get(choice)
+
         if action is None:
             warn("Invalid choice. Please enter a number from 0 to 4.")
+            pause_for_enter()
             continue
+
+        clear_screen()
+
         try:
             action()
         except sqlite3.Error as error:
             warn(f"Database error: {error}. Your data was not changed.")
 
+        pause_for_enter()
+
 MAX_LOGIN_ATTEMPTS = 3
 
+
 def admin_login(conn):
-    """Ask for admin credentials (3 tries); return the admin row or None."""
-    banner("Admin Login")
-    for _ in range(MAX_LOGIN_ATTEMPTS):
+    """Ask for admin credentials; return to username prompt after 3 failures."""
+    while True:
+        clear_screen()
+        banner("Admin Login")
+
         username = read_text("Username (blank to cancel): ", required=False)
+
         if not username:
             return None
+
         admin = get_admin(conn, username)
-        if admin and verify_password(read_password("Password: "), admin["password_hash"]):
-            ok("Login successful.")
-            return admin
-        warn("Wrong username or password.")
-    warn("Too many failed attempts.")
-    return None
+
+        if not admin:
+            warn("Username not found.")
+            pause_for_enter()
+            continue
+
+        for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
+            password = read_password("Password: ")
+
+            if verify_password(password, admin["password_hash"]):
+                ok("Login successful.")
+                return admin
+
+            remaining = MAX_LOGIN_ATTEMPTS - attempt
+
+            if remaining > 0:
+                warn(f"Wrong password. {remaining} attempt(s) remaining.")
+            else:
+                warn("Three failed attempts. Returning to username prompt.")
+
+        pause_for_enter()
+
 
 def customer_login(conn):
-    """Ask for a customer's email and password (3 tries); return the customer row or None."""
-    banner("Customer Login")
-    for _ in range(MAX_LOGIN_ATTEMPTS):
+    """Ask for customer credentials; return to email prompt after 3 failures."""
+    while True:
+        clear_screen()
+        banner("Customer Login")
+
         email = read_text("Email (blank to cancel): ", required=False).lower()
+
         if not email:
             return None
+
         customer = get_customer_by_email(conn, email)
-        if customer and not customer["password_hash"]:
-            # Older account without a password: verify the mobile number, then set one.
-            print("  This account has no password yet. Please verify your mobile number.")
+
+        if not customer:
+            warn("Email not found.")
+            pause_for_enter()
+            continue
+
+        if not customer["password_hash"]:
+            print("\nThis account has no password yet.")
+            print("Please verify your mobile number.")
+
             phone = read_text("Mobile number: ")
-            if is_valid_phone(phone) and customer["phone"] and normalize_phone(phone) == customer["phone"]:
-                set_customer_password(conn, customer["customer_id"], read_new_password())
+
+            if (
+                is_valid_phone(phone)
+                and customer["phone"]
+                and normalize_phone(phone) == customer["phone"]
+            ):
+                set_customer_password(
+                    conn,
+                    customer["customer_id"],
+                    read_new_password()
+                )
+
                 ok("Password saved.")
                 return get_customer_by_email(conn, email)
+
             warn("Email or mobile number is incorrect.")
+            pause_for_enter()
             continue
-        if customer and verify_password(read_password("Password: "), customer["password_hash"]):
-            ok("Login successful.")
-            return customer
-        warn("Wrong email or password.")
-    warn("Too many failed attempts.")
-    return None
+
+        for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
+            password = read_password("Password: ")
+
+            if verify_password(password, customer["password_hash"]):
+                ok("Login successful.")
+                return customer
+
+            remaining = MAX_LOGIN_ATTEMPTS - attempt
+
+            if remaining > 0:
+                warn(f"Wrong password. {remaining} attempt(s) remaining.")
+            else:
+                warn("Three failed attempts. Returning to email prompt.")
+
+        pause_for_enter()
 
 def main():
     """Show the login screen until the user exits."""

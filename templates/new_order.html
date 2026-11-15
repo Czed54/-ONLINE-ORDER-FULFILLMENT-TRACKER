@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}New Order | Order Fulfillment Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Place a New Order</h2>
+    <p>Enter the products you want to order.</p>
+</div>
+
+<div class="panel">
+    <form method="POST" action="{{ url_for('new_order') }}" id="order-form">
+
+        <label for="order_date">Order Date</label>
+        <input type="date" id="order_date" name="order_date"
+               value="{{ today }}" max="{{ today }}" required>
+
+        <div class="section-heading">
+            <h3>Order Items</h3>
+            <button type="button" class="btn btn-secondary" onclick="addItem()">
+                + Add Item
+            </button>
+        </div>
+
+        <div id="items-container">
+            <div class="order-item">
+                <div>
+                    <label>Product Name</label>
+                    <input type="text" name="product_name[]" required>
+                </div>
+
+                <div>
+                    <label>Quantity</label>
+                    <input type="number" name="quantity[]" min="1"
+                           max="1000" value="1" required>
+                </div>
+
+                <div>
+                    <label>Unit Price</label>
+                    <input type="number" name="unit_price[]" min="0"
+                           step="0.01" value="0" required>
+                </div>
+
+                <button type="button" class="remove-item"
+                        onclick="removeItem(this)" disabled>
+                    Remove
+                </button>
+            </div>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn">Submit Order</button>
+            <a href="{{ url_for('orders') }}" class="btn btn-secondary">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+function addItem() {
+    const container = document.getElementById("items-container");
+
+    const item = document.createElement("div");
+    item.className = "order-item";
+
+    item.innerHTML = `
+        <div>
+            <label>Product Name</label>
+            <input type="text" name="product_name[]" required>
+        </div>
+
+        <div>
+            <label>Quantity</label>
+            <input type="number" name="quantity[]" min="1"
+                   max="1000" value="1" required>
+        </div>
+
+        <div>
+            <label>Unit Price</label>
+            <input type="number" name="unit_price[]" min="0"
+                   step="0.01" value="0" required>
+        </div>
+
+        <button type="button" class="remove-item"
+                onclick="removeItem(this)">
+            Remove
+        </button>
+    `;
+
+    container.appendChild(item);
+    updateRemoveButtons();
+}
+
+function removeItem(button) {
+    const container = document.getElementById("items-container");
+
+    if (container.children.length > 1) {
+        button.closest(".order-item").remove();
+    }
+
+    updateRemoveButtons();
+}
+
+function updateRemoveButtons() {
+    const items = document.querySelectorAll(".order-item");
+
+    items.forEach(item => {
+        const button = item.querySelector(".remove-item");
+        button.disabled = items.length === 1;
+    });
+}
+</script>
+{% endblock %}

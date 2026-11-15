@@ -282,7 +282,7 @@ def get_orders(conn, order_id=None, customer_keyword=None, shipping_status=None,
 
     # `where` only ever contains the fixed clauses above; values stay in params.
     query = f"""
-        SELECT o.order_id, c.name AS customer, c.city AS city, c.phone AS phone,
+        SELECT o.order_id, o.customer_id, c.name AS customer, c.city AS city, c.phone AS phone,
                o.order_date, o.shipping_status, o.payment_status,
                COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS total,
                o.shipped_date, o.delivered_date, o.route_stage,

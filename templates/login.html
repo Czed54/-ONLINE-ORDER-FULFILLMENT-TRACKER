@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Login | Order Fulfillment Tracker{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="panel auth-panel">
+        <h2>Welcome Back</h2>
+        <p>Log in to your account to continue.</p>
+
+        <form method="POST" action="{{ url_for('login') }}">
+            <label for="role">Account Type</label>
+            <select name="role" id="role" onchange="toggleRoleFields()" required>
+                <option value="customer">Customer</option>
+                <option value="admin">Administrator</option>
+            </select>
+
+            <label for="username">Email / Username</label>
+            <input type="text" id="username" name="username"
+                   placeholder="Enter your email or username" required>
+
+            <div id="password-fields">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password"
+                       placeholder="Enter your password">
+            </div>
+
+            <div id="setup-fields" style="display: none;">
+                <p>First-time customer? Verify your account to set a password.</p>
+
+                <label for="phone">Registered Mobile Number</label>
+                <input type="text" id="phone" name="phone"
+                       placeholder="Enter your registered mobile number">
+
+                <label for="new_password">Create Password</label>
+                <input type="password" id="new_password" name="new_password"
+                       placeholder="Create a new password">
+            </div>
+
+            <button type="submit" class="btn">Log In</button>
+        </form>
+
+        <p class="auth-link">
+            Don't have an account?
+            <a href="{{ url_for('register') }}">Register here</a>
+        </p>
+    </div>
+</div>
+
+<script>
+function toggleRoleFields() {
+    const role = document.getElementById("role").value;
+    const passwordFields = document.getElementById("password-fields");
+    const setupFields = document.getElementById("setup-fields");
+
+    if (role === "customer") {
+        passwordFields.style.display = "block";
+        setupFields.style.display = "block";
+    } else {
+        passwordFields.style.display = "block";
+        setupFields.style.display = "none";
+    }
+}
+</script>
+{% endblock %}

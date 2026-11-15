@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f4f6fa">
+    <title>{% block title %}Online Order Fulfillment Tracker{% endblock %}</title>
+
+    <script>
+        (function () {
+            try {
+                const savedTheme = localStorage.getItem("ooft-theme");
+                const theme = savedTheme === "dark" ? "dark" : "light";
+                document.documentElement.setAttribute("data-theme", theme);
+            } catch (error) {
+                document.documentElement.setAttribute("data-theme", "light");
+            }
+        })();
+    </script>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="navbar">
+    <div class="brand">Online Order Fulfillment Tracker</div>
+
+    <div class="navbar-actions">
+        {% if session.get('user_id') %}
+        <nav>
+            <a href="{{ url_for('dashboard') }}">Dashboard</a>
+            <a href="{{ url_for('orders') }}">Orders</a>
+            {% if session.get('role') == 'customer' %}
+            <a href="{{ url_for('new_order') }}">Place Order</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}">Log Out</a>
+        </nav>
+        {% endif %}
+
+        <button
+            type="button"
+            class="theme-toggle"
+            id="themeToggle"
+            aria-label="Switch color theme"
+            title="Switch color theme">
+            <span class="theme-icon" aria-hidden="true">☾</span>
+            <span class="theme-label">Dark</span>
+        </button>
+    </div>
+</header>
+
+<main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer>Online Order Fulfillment Tracker</footer>
+
+<script>
+    (function () {
+        const toggle = document.getElementById("themeToggle");
+        const root = document.documentElement;
+
+        if (!toggle) return;
+
+        function updateToggle(theme) {
+            const isDark = theme === "dark";
+            toggle.querySelector(".theme-icon").textContent = isDark ? "☀" : "☾";
+            toggle.querySelector(".theme-label").textContent = isDark ? "Light" : "Dark";
+            toggle.setAttribute(
+                "aria-label",
+                isDark ? "Switch to light theme" : "Switch to dark theme"
+            );
+            document.querySelector('meta[name="theme-color"]')
+                ?.setAttribute("content", isDark ? "#111827" : "#f4f6fa");
+        }
+
+        const currentTheme = root.getAttribute("data-theme") || "light";
+        updateToggle(currentTheme);
+
+        toggle.addEventListener("click", function () {
+            const nextTheme =
+                root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+
+            root.setAttribute("data-theme", nextTheme);
+
+            try {
+                localStorage.setItem("ooft-theme", nextTheme);
+            } catch (error) {
+                // Theme still works for the current page if storage is unavailable.
+            }
+
+            updateToggle(nextTheme);
+        });
+    })();
+</script>
+</body>
+</html>

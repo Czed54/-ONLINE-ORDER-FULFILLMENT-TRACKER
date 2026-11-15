@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Orders | Order Fulfillment Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Orders</h2>
+    <p>Manage and track order fulfillment.</p>
+</div>
+
+{% if session.get("role") == "admin" %}
+<div class="panel">
+    <h3>Filter Orders</h3>
+    <form method="GET" action="{{ url_for('orders') }}" class="filter-form">
+        <div>
+            <label for="shipping_status">Shipping Status</label>
+            <select name="shipping_status" id="shipping_status">
+                <option value="">All Shipping Statuses</option>
+                {% for status in shipping_statuses %}
+                <option value="{{ status }}"
+                    {% if request.args.get('shipping_status') == status %}selected{% endif %}>
+                    {{ status }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="payment_status">Payment Status</label>
+            <select name="payment_status" id="payment_status">
+                <option value="">All Payment Statuses</option>
+                {% for status in payment_statuses %}
+                <option value="{{ status }}"
+                    {% if request.args.get('payment_status') == status %}selected{% endif %}>
+                    {{ status }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn">Apply Filters</button>
+        <a href="{{ url_for('orders') }}" class="btn btn-secondary">Clear</a>
+    </form>
+</div>
+{% else %}
+<div class="panel">
+    <a href="{{ url_for('new_order') }}" class="btn">Place New Order</a>
+</div>
+{% endif %}
+
+<div class="panel">
+    <h3>Order Records</h3>
+
+    {% if orders %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    {% if session.get("role") == "admin" %}
+                    <th>Customer</th>
+                    <th>City</th>
+                    {% endif %}
+                    <th>Order Date</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Shipping Status</th>
+                    <th>Payment Status</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>#{{ order.order_id }}</td>
+                    {% if session.get("role") == "admin" %}
+                    <td>{{ order.customer }}</td>
+                    <td>{{ order.city }}</td>
+                    {% endif %}
+                    <td>{{ order.order_date }}</td>
+                    <td>{{ order.item_count }}</td>
+                    <td>{{ money(order.total) }}</td>
+                    <td>{{ order.shipping_status }}</td>
+                    <td>{{ order.payment_status }}</td>
+                    <td>
+                        <a href="{{ url_for('order_detail', order_id=order.order_id) }}">
+                            View Details
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No orders found.</p>
+    {% endif %}
+</div>
+{% endblock %}

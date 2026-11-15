@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}Order #{{ order.order_id }} | Order Fulfillment Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Order #{{ order.order_id }}</h2>
+    <p>Order details and fulfillment tracking.</p>
+</div>
+
+<div class="panel">
+    <div class="section-heading">
+        <h3>Order Information</h3>
+        <span class="status-badge">{{ order.shipping_status }}</span>
+    </div>
+
+    <div class="details-grid">
+        <p><strong>Order ID:</strong> #{{ order.order_id }}</p>
+        <p><strong>Order Date:</strong> {{ order.order_date }}</p>
+        {% if role == "admin" %}
+        <p><strong>Customer:</strong> {{ order.customer }}</p>
+        <p><strong>City:</strong> {{ order.city }}</p>
+        <p><strong>Phone:</strong> {{ order.phone }}</p>
+        {% endif %}
+        <p><strong>Shipping Status:</strong> {{ order.shipping_status }}</p>
+        <p><strong>Payment Status:</strong> {{ order.payment_status }}</p>
+        <p><strong>Shipped Date:</strong> {{ order.shipped_date or "Not shipped" }}</p>
+        <p><strong>Delivered Date:</strong> {{ order.delivered_date or "Not delivered" }}</p>
+    </div>
+
+    <h3>Order Items</h3>
+    {% if items %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Quantity</th>
+                    <th>Unit Price</th>
+                    <th>Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <td>{{ item.product_name }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ money(item.unit_price) }}</td>
+                    <td>{{ money(item.line_total) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="order-total">
+        <strong>Order Total:</strong>
+        <span>{{ money(order.total) }}</span>
+    </div>
+</div>
+
+{% if role == "admin" %}
+<div class="panel">
+    <h3>Order Management</h3>
+
+    {% if order.shipping_status == "Pending" %}
+    <form method="POST"
+          action="{{ url_for('confirm_order_route', order_id=order.order_id) }}">
+        <button type="submit" class="btn">
+            Confirm Order
+        </button>
+    </form>
+    {% endif %}
+
+    <form method="POST"
+          action="{{ url_for('update_order_route', order_id=order.order_id) }}"
+          class="management-form">
+
+        <div>
+            <label for="shipping_status">Shipping Status</label>
+            <select name="shipping_status" id="shipping_status">
+                <option value="">Keep Current Status</option>
+                {% for status in next_statuses %}
+                <option value="{{ status }}">{{ status }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label for="payment_status">Payment Status</label>
+            <select name="payment_status" id="payment_status">
+                <option value="">Keep Current Status</option>
+                {% for status in payment_statuses %}
+                <option value="{{ status }}"
+                    {% if status == order.payment_status %}selected{% endif %}>
+                    {{ status }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <button type="submit" class="btn">Update Order</button>
+    </form>
+</div>
+{% endif %}
+
+<div class="panel">
+    <h3>Tracking History</h3>
+
+    {% if history %}
+    <div class="timeline">
+        {% for event in history %}
+        <div class="timeline-item">
+            <strong>{{ event.event }}</strong>
+            <p>{{ event.changed_at }}</p>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p>No tracking history available.</p>
+    {% endif %}
+</div>
+
+<a href="{{ url_for('orders') }}" class="btn btn-secondary">
+    Back to Orders
+</a>
+{% endblock %}

@@ -73,7 +73,7 @@ def top_customers(conn, limit=5):
 # ------------------------------------------------------------------ charts
 def _bar_chart(labels, values, title, xlabel, ylabel, filename, money=False):
     """Draw a bar chart and save it in the charts folder. Return the path."""
-    CHARTS_DIR.mkdir(exist_ok=True)
+    CHARTS_DIR.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(7, 4.5))
     bars = ax.bar(labels, values, color="#4C78A8")
     ax.set_title(title)

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Register | Order Fulfillment Tracker{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="panel auth-panel">
+        <h2>Create Customer Account</h2>
+        <p>Register to start managing your orders.</p>
+
+        <form method="POST" action="{{ url_for('register') }}">
+            <label for="name">Full Name</label>
+            <input type="text" id="name" name="name" required>
+
+            <label for="email">Email Address</label>
+            <input type="email" id="email" name="email" required>
+
+            <label for="phone">Mobile Number</label>
+            <input type="text" id="phone" name="phone" required>
+
+            <label for="city">City</label>
+            <input type="text" id="city" name="city" required>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required>
+
+            <label for="confirm_password">Confirm Password</label>
+            <input type="password" id="confirm_password"
+                   name="confirm_password" required>
+
+            <button type="submit" class="btn">Create Account</button>
+        </form>
+
+        <p class="auth-link">
+            Already registered?
+            <a href="{{ url_for('login') }}">Log in</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

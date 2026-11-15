@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard | Order Fulfillment Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h2>Dashboard</h2>
+    <p>Manage your orders, customers, and fulfillment activities from here.</p>
+</div>
+
+{% if role == "admin" %}
+    <div class="stats-grid">
+        <div class="panel stat-card">
+            <h3>Total Customers</h3>
+            <p>{{ stats.customers }}</p>
+        </div>
+
+        <div class="panel stat-card">
+            <h3>Total Orders</h3>
+            <p>{{ stats.orders }}</p>
+        </div>
+
+        <div class="panel stat-card">
+            <h3>To Ship</h3>
+            <p>{{ stats.to_ship }}</p>
+        </div>
+
+        <div class="panel stat-card">
+            <h3>In Transit</h3>
+            <p>{{ stats.in_transit }}</p>
+        </div>
+
+        <div class="panel stat-card">
+            <h3>Unpaid Orders</h3>
+            <p>{{ stats.unpaid }}</p>
+        </div>
+
+        <div class="panel stat-card">
+            <h3>Average Order Value</h3>
+            <p class="stat-money">{{ money(average_value) }}</p>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        {% if status_chart %}
+        <div class="panel">
+            <h3>Orders by Shipping Status</h3>
+            <img src="{{ url_for('chart_file', filename=status_chart) }}"
+                 alt="Orders by shipping status chart">
+        </div>
+        {% endif %}
+
+        {% if payment_chart %}
+        <div class="panel">
+            <h3>Revenue by Payment Status</h3>
+            <img src="{{ url_for('chart_file', filename=payment_chart) }}"
+                 alt="Revenue by payment status chart">
+        </div>
+        {% endif %}
+    </div>
+{% else %}
+    <div class="panel">
+        <h3>Customer Information</h3>
+        <p><strong>Name:</strong> {{ customer.name }}</p>
+        <p><strong>Email:</strong> {{ customer.email }}</p>
+        <p><strong>City:</strong> {{ customer.city }}</p>
+        <p><strong>Phone:</strong> {{ customer.phone }}</p>
+    </div>
+
+    <div class="panel">
+        <h3>Quick Actions</h3>
+        <a class="btn" href="{{ url_for('new_order') }}">Place New Order</a>
+        <a class="btn" href="{{ url_for('orders') }}">View My Orders</a>
+    </div>
+{% endif %}
+
+<div class="panel">
+    <div class="section-heading">
+        <h3>{% if role == "admin" %}Recent Orders{% else %}My Recent Orders{% endif %}</h3>
+        <a href="{{ url_for('orders') }}">View All</a>
+    </div>
+
+    {% if orders %}
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Order ID</th>
+                    {% if role == "admin" %}
+                    <th>Customer</th>
+                    {% endif %}
+                    <th>Date</th>
+                    <th>Total</th>
+                    <th>Shipping</th>
+                    <th>Payment</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>#{{ order.order_id }}</td>
+                    {% if role == "admin" %}
+                    <td>{{ order.customer }}</td>
+                    {% endif %}
+                    <td>{{ order.order_date }}</td>
+                    <td>{{ money(order.total) }}</td>
+                    <td>{{ order.shipping_status }}</td>
+                    <td>{{ order.payment_status }}</td>
+                    <td>
+                        <a href="{{ url_for('order_detail', order_id=order.order_id) }}">
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p>No orders found.</p>
+    {% endif %}
+</div>
+{% endblock %}
+EO
