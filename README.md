@@ -1,6 +1,6 @@
 # Online Order Fulfillment Tracker
 
-A web-based order management and fulfillment tracking system built with **Python, Flask, SQLite, HTML, CSS, and Matplotlib**. The system provides separate interfaces for administrators and customers to manage products, place orders, update fulfillment statuses, and monitor order progress.
+A browser-based order management and fulfillment tracking system built with **Python, Flask, SQLite, HTML, CSS, and Matplotlib**. The system provides separate interfaces for administrators and customers to manage products, place orders, update fulfillment statuses, and monitor order progress.
 
 ## Features
 
@@ -25,7 +25,7 @@ A web-based order management and fulfillment tracking system built with **Python
 - Shipping progress is recorded through status updates and tracking history.
 - Customer accounts cannot access administrator-only product management pages.
 
-> **Tracking note:** This project provides status-based order tracking. Package locations and route stops are illustrative fulfillment stages; the system does not use live GPS tracking.
+> **Tracking note:** This project provides status-based order tracking. Package locations and route stops are illustrative fulfillment stages; the system use GPS tracking.
 
 ## Technology Stack
 
