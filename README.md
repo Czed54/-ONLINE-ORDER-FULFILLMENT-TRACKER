@@ -95,7 +95,6 @@ The database initializes a default administrator account when no administrator e
 
 Use the customer registration page to create a customer account for testing.
 
-**Security warning:** These are development/demo credentials. Do not use the default administrator credentials or Flask's development server for a public production deployment. Set a strong `FLASK_SECRET_KEY`, use a unique administrator password, and configure production-grade hosting before exposing the application to the internet.
 
 ## Basic Demonstration Workflow
 
